@@ -1,0 +1,303 @@
+defaultRules:
+  create: true
+  rules:
+    alertmanager: true
+    etcd: false
+    configReloaders: true
+    general: true
+    k8sContainerCpuUsageSecondsTotal: true
+    k8sContainerMemoryCache: true
+    k8sContainerMemoryRss: true
+    k8sContainerMemorySwap: true
+    k8sContainerResource: true
+    k8sContainerMemoryWorkingSetBytes: true
+    k8sPodOwner: true
+    kubeApiserverAvailability: true
+    kubeApiserverBurnrate: true
+    kubeApiserverHistogram: true
+    kubeApiserverSlos: true
+    kubeControllerManager: false
+    kubelet: true
+    kubeProxy: true
+    kubePrometheusGeneral: true
+    kubePrometheusNodeRecording: true
+    kubernetesApps: true
+    kubernetesResources: true
+    kubernetesStorage: true
+    kubernetesSystem: true
+    kubeSchedulerAlerting: false
+    kubeSchedulerRecording: false
+    kubeStateMetrics: true
+    network: true
+    node: true
+    nodeExporterAlerting: true
+    nodeExporterRecording: true
+    prometheus: true
+    prometheusOperator: true
+    windows: true
+
+alertmanager:
+  enabled: false
+  config:
+    global:
+      resolve_timeout: 5m
+    inhibit_rules:
+      - source_matchers:
+          - 'severity = critical'
+        target_matchers:
+          - 'severity =~ warning|info'
+        equal:
+          - 'namespace'
+          - 'alertname'
+      - source_matchers:
+          - 'severity = warning'
+        target_matchers:
+          - 'severity = info'
+        equal:
+          - 'namespace'
+          - 'alertname'
+    route:
+      group_by: ['namespace']
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 12h
+      receiver: 'slack'
+      routes:
+      - receiver: 'null'
+        matchers:
+          - alertname = "InfoInhibitor"
+      - receiver: 'null'
+        matchers:
+          - alertname = "Watchdog"
+      - receiver: 'slack'
+        matchers:
+          - severity =~ "warning|critical"
+    receivers:
+      - name: 'null'
+      - name: slack
+        slack_configs:
+        - send_resolved: true
+          text: >-
+            {{ range .Alerts }}
+              *Alert:* {{ .Annotations.summary }} - `{{ .Labels.severity }}`
+              *Description:* `{{ .Annotations.description }}`
+              *Details:*
+              {{ range .Labels.SortedPairs }} • *{{ .Name }}:* `{{ .Value }}`
+              {{ end }}
+            {{ end }}
+          username: alertmanager
+          channel: "${slack_channel}"
+          api_url: "${slack_api_url}"
+    templates:
+    - '/etc/alertmanager/config/*.tmpl'
+
+  ingress:
+    enabled: true
+    annotations:
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/ssl-redirect: "443"
+      alb.ingress.kubernetes.io/backend-protocol: HTTP
+      alb.ingress.kubernetes.io/certificate-arn: "${certificate_arn}"
+      alb.ingress.kubernetes.io/load-balancer-name: "${name}-${env}-pub-alb"
+      alb.ingress.kubernetes.io/group.name: ingress-external
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}, {"HTTP": 80}]'
+      alb.ingress.kubernetes.io/manage-backend-security-group-rules: "true"
+      alb.ingress.kubernetes.io/security-groups: "${name}-${env}-external-ingress-sg"
+      alb.ingress.kubernetes.io/load-balancer-attributes: routing.http2.enabled=true,idle_timeout.timeout_seconds=300, routing.http.drop_invalid_header_fields.enabled=true
+      alb.ingress.kubernetes.io/target-group-attributes: deregistration_delay.timeout_seconds=30,load_balancing.algorithm.type=least_outstanding_requests
+      alb.ingress.kubernetes.io/target-type: ip
+      external-dns.alpha.kubernetes.io/hostname: ${alertmanager_hostname}
+    ingressClassName: "alb"
+    hosts:
+      - ${alertmanager_hostname}
+    paths: ["/*"]
+    tls: []
+
+  alertmanagerSpec:
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: gp3
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 5Gi
+
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+          - matchExpressions:
+            - key: karpenter.sh/controller
+              operator: In
+              values:
+              - "true"
+
+    tolerations:
+      - key: "CriticalAddonsOnly"
+        operator: "Equal"
+        value: "true"
+        effect: "NoSchedule"
+
+grafana:
+  enabled: true
+  defaultDashboardsTimezone: browser
+  adminPassword: "${grafana_admin_password}"
+  assertNoLeakedSecrets: false
+  
+  tolerations:
+    - key: "CriticalAddonsOnly"
+      operator: "Equal"
+      value: "true"
+      effect: "NoSchedule"
+
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: karpenter.sh/controller
+            operator: In
+            values:
+            - "true"
+  ingress:
+    enabled: true
+    ingressClassName: alb
+    annotations:
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/ssl-redirect: "443"
+      alb.ingress.kubernetes.io/backend-protocol: HTTP
+      alb.ingress.kubernetes.io/certificate-arn: "${certificate_arn}"
+      alb.ingress.kubernetes.io/load-balancer-name: "${name}-${env}-pub-alb"
+      alb.ingress.kubernetes.io/group.name: ingress-external
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}, {"HTTP": 80}]'
+      alb.ingress.kubernetes.io/manage-backend-security-group-rules: "true"
+      alb.ingress.kubernetes.io/security-groups: "${name}-${env}-external-ingress-sg"
+      alb.ingress.kubernetes.io/load-balancer-attributes: routing.http2.enabled=true,idle_timeout.timeout_seconds=300, routing.http.drop_invalid_header_fields.enabled=true
+      alb.ingress.kubernetes.io/target-group-attributes: deregistration_delay.timeout_seconds=30,load_balancing.algorithm.type=least_outstanding_requests
+      alb.ingress.kubernetes.io/target-type: ip
+      external-dns.alpha.kubernetes.io/hostname: ${grafana_hostname}
+    hosts:
+      - ${grafana_hostname}
+    path: /*
+    pathType: ImplementationSpecific
+    tls: []
+  persistence:
+    enabled: true
+    type: sts
+    storageClassName: "gp3"
+    accessModes:
+      - ReadWriteOnce
+    size: 5Gi
+    finalizers:
+      - kubernetes.io/pvc-protection
+
+
+prometheusOperator:
+  tolerations:
+    - key: "CriticalAddonsOnly"
+      operator: "Equal"
+      value: "true"
+      effect: "NoSchedule"
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: karpenter.sh/controller
+            operator: In
+            values:
+            - "true"
+
+  admissionWebhooks:
+    deployment:
+      tolerations:
+        - key: "CriticalAddonsOnly"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: karpenter.sh/controller
+                operator: In
+                values:
+                - "true"
+    patch:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: karpenter.sh/controller
+                operator: In
+                values:
+                - "true"
+      tolerations:
+        - key: "CriticalAddonsOnly"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+
+    
+
+prometheus:
+  enabled: true
+  ingress:
+    enabled: true
+    ingressClassName: alb
+    annotations:
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/ssl-redirect: "443"
+      alb.ingress.kubernetes.io/backend-protocol: HTTP
+      alb.ingress.kubernetes.io/certificate-arn: "${certificate_arn}"
+      alb.ingress.kubernetes.io/load-balancer-name: "${name}-${env}-pub-alb"
+      alb.ingress.kubernetes.io/group.name: ingress-external
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}, {"HTTP": 80}]'
+      alb.ingress.kubernetes.io/manage-backend-security-group-rules: "true"
+      alb.ingress.kubernetes.io/security-groups: "${name}-${env}-external-ingress-sg"
+      alb.ingress.kubernetes.io/load-balancer-attributes: routing.http2.enabled=true,idle_timeout.timeout_seconds=300, routing.http.drop_invalid_header_fields.enabled=true
+      alb.ingress.kubernetes.io/target-group-attributes: deregistration_delay.timeout_seconds=30,load_balancing.algorithm.type=least_outstanding_requests
+      alb.ingress.kubernetes.io/target-type: ip
+      external-dns.alpha.kubernetes.io/hostname: ${prometheus_hostname}
+    hosts:
+      - ${prometheus_hostname}
+    tls: []
+    paths: ["/*"]
+  prometheusSpec:
+    enableRemoteWriteReceiver: true
+    tolerations:
+      - key: "CriticalAddonsOnly"
+        operator: "Equal"
+        value: "true"
+        effect: "NoSchedule"
+
+    retention: 30d
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+          - matchExpressions:
+            - key: karpenter.sh/controller
+              operator: In
+              values:
+              - "true"
+
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: gp3
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 60Gi
+
+    additionalScrapeConfigs: []
+
+  additionalServiceMonitors: []
+  
+
+  additionalPodMonitors: []
+  

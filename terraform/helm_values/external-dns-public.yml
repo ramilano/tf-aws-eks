@@ -1,0 +1,16 @@
+tolerations:
+  - key: "CriticalAddonsOnly"
+    operator: "Equal"
+    value: "true"
+    effect: "NoSchedule"
+
+domainFilters:
+  - "${domain}"
+
+extraArgs:
+  - --aws-zone-type=public
+  - --annotation-filter=alb.ingress.kubernetes.io/scheme in (internet-facing)
+
+env:
+  - name: AWS_DEFAULT_REGION
+    value: ${aws_region}
