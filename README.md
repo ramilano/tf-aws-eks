@@ -185,4 +185,7 @@ cd eu-west-1/prod
 terragrunt destroy
 ```
 
-**Note**: S3 buckets and DynamoDB table for state management are not destroyed automatically.
+**Note**: 
+- S3 buckets and DynamoDB table for state management are not destroyed automatically.
+- Only production environment is used, other environments are not considered
+- Cluster access is public, making it private and configuring vpn and access will take additional time thats why I tried to make it a bit simple :)
