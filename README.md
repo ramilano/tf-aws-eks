@@ -13,17 +13,17 @@ The basic deployment creates:
 
 ### Quick Start
 
-1. **Initialize AWS resources**:
-   ```bash
-   ./init.sh
-   ```
-   This creates the S3 bucket and DynamoDB table for Terraform state management.
-
-2. **Configure AWS credentials**:
+1. **Configure AWS credentials**:
    ```bash
    # Update vars.sh with your AWS credentials
    source vars.sh
    ```
+
+2. **Initialize AWS resources**:
+   ```bash
+   ./init.sh
+   ```
+   This creates the S3 bucket and DynamoDB table for Terraform state management.
 
 3. **Deploy the cluster**:
    ```bash

@@ -125,7 +125,7 @@ remote_state {
   config = {
     bucket         = ""
     key            = "${local.region}/${local.env}/${path_relative_to_include()}/terraform.tfstate"
-    region         = "eu-west-1"
+    region         = ""
     encrypt        = true
     dynamodb_table = "-lock"
     
