@@ -123,11 +123,11 @@ remote_state {
   backend = "s3"
   
   config = {
-    bucket         = "ramilano-demo"
+    bucket         = ""
     key            = "${local.region}/${local.env}/${path_relative_to_include()}/terraform.tfstate"
     region         = "eu-west-1"
     encrypt        = true
-    dynamodb_table = "ramilano-demo-lock"
+    dynamodb_table = "-lock"
     
     s3_bucket_tags = {
       Name        = "Terraform State Storage"
