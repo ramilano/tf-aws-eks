@@ -7,10 +7,8 @@ module "vpc" {
   azs              = data.aws_availability_zones.azs.names
   private_subnets  = var.private_subnet_cidrs
   public_subnets   = var.public_subnet_cidrs
-  database_subnets = var.database_subnet_cidrs
-  intra_subnets    = var.intra_subnet_cidrs
 
-  create_database_subnet_group = true
+  create_database_subnet_group = false
 
   enable_vpn_gateway = var.enable_vpn_gateway
 

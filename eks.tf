@@ -10,16 +10,6 @@ module "eks" {
   cluster_enabled_log_types       = []
 
   cluster_encryption_config = {}
-  # cluster_security_group_additional_rules = {
-  # 
-  #   ingress_vpn = {
-  #     type              = "ingress"
-  #     from_port         = 443
-  #     to_port           = 443
-  #     protocol          = "tcp"
-  #     cidr_blocks       = [var.vpc_cidr]
-  #   }
-  # }
 
 
   cluster_addons = {

@@ -1,8 +1,0 @@
-nodeSelector:
-  karpenter.sh/controller: "true"
-
-tolerations:
-  - key: "CriticalAddonsOnly"
-    operator: "Equal"
-    value: "true"
-    effect: "NoSchedule"

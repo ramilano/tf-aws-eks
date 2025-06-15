@@ -58,3 +58,8 @@ provider "kubernetes" {
     args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name]
   }
 }
+
+provider "aws" {
+  region = "us-east-1"
+  alias  = "virginia"
+}
